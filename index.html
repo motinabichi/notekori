@@ -8,8 +8,42 @@
 </head>
 <body>
 
-  <!-- ────────────────────────────── LOGIN OVERLAY ────────────────────────────── -->
-  <div id="loginOverlay" class="overlay" aria-modal="true" role="dialog" aria-labelledby="loginTitle">
+  <!-- ──────────────────────── SHARED VIEW ──────────────────────── -->
+  <div id="sharedView" class="shared-view hidden">
+    <div class="shared-header">
+      <div class="shared-logo">📓 Notekori</div>
+      <div class="shared-title-block">
+        <span id="sharedCourseTitle" class="shared-course-title"></span>
+        <span id="sharedTermBadge" class="shared-term-badge"></span>
+        <span id="sharedByLine" class="shared-by"></span>
+      </div>
+      <div class="shared-header-actions">
+        <button id="sharedExportPdfBtn" class="btn btn-primary btn-sm">📄 Export PDF</button>
+        <a href="/" class="btn btn-outline btn-sm">Open App</a>
+      </div>
+    </div>
+    <div id="sharedContent" class="shared-content">
+      <div id="sharedLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading shared notes…</p>
+      </div>
+      <div id="sharedGallery" class="note-gallery hidden"></div>
+      <div id="sharedEmpty" class="gallery-empty hidden">
+        <span>📭</span>
+        <p>No notes in this share.</p>
+      </div>
+      <div id="sharedError" class="gallery-empty hidden">
+        <span>🔒</span>
+        <p id="sharedErrorMsg">This share link is no longer available.</p>
+      </div>
+    </div>
+    <div class="shared-footer">
+      <p>Powered by <a href="/">Notekori</a></p>
+    </div>
+  </div>
+
+  <!-- ──────────────────────── LOGIN OVERLAY ──────────────────────── -->
+  <div id="loginOverlay" class="overlay" aria-modal="true" role="dialog" aria-label="Sign in">
     <div class="login-card">
       <div class="login-logo">
         <span class="logo-icon">📓</span>
@@ -17,17 +51,40 @@
         <p class="login-sub">Your personal note storage</p>
       </div>
 
-      <!-- First-run setup -->
+      <!-- Sign In (default) -->
+      <form id="loginForm" class="auth-form" novalidate>
+        <h2>Sign In</h2>
+        <div class="field">
+          <label for="loginUser">Username or Email</label>
+          <input id="loginUser" type="text" autocomplete="username" placeholder="Username or email" required />
+        </div>
+        <div class="field">
+          <label for="loginPass">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="Password" required />
+        </div>
+        <p id="loginError" class="form-error hidden"></p>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+        <div class="auth-links">
+          <button type="button" id="showForgotBtn" class="link-btn">Forgot password?</button>
+          <button type="button" id="showSignupBtn" class="link-btn">New here? Create an account</button>
+        </div>
+      </form>
+
+      <!-- Create Account -->
       <form id="setupForm" class="auth-form hidden" novalidate>
         <h2>Create Account</h2>
-        <p class="form-note">Set up your username and password to get started.</p>
+        <p class="form-note">Set up your account to get started.</p>
         <div class="field">
           <label for="setupUser">Username</label>
-          <input id="setupUser" type="text" autocomplete="username" placeholder="Choose a username" required />
+          <input id="setupUser" type="text" autocomplete="username" placeholder="Choose a username (3–20 chars)" required />
+        </div>
+        <div class="field">
+          <label for="setupEmail">Email</label>
+          <input id="setupEmail" type="email" autocomplete="email" placeholder="your@email.com" required />
         </div>
         <div class="field">
           <label for="setupPass">Password</label>
-          <input id="setupPass" type="password" autocomplete="new-password" placeholder="Choose a password" required />
+          <input id="setupPass" type="password" autocomplete="new-password" placeholder="At least 6 characters" required />
         </div>
         <div class="field">
           <label for="setupPassConfirm">Confirm Password</label>
@@ -35,29 +92,33 @@
         </div>
         <p id="setupError" class="form-error hidden"></p>
         <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+        <div class="auth-links">
+          <button type="button" id="showLoginBtn" class="link-btn">Already have an account? Sign in</button>
+        </div>
       </form>
 
-      <!-- Normal login -->
-      <form id="loginForm" class="auth-form hidden" novalidate>
-        <h2>Sign In</h2>
+      <!-- Forgot Password -->
+      <form id="forgotForm" class="auth-form hidden" novalidate>
+        <h2>Reset Password</h2>
+        <p class="form-note">Enter your email and we'll send a reset link.</p>
         <div class="field">
-          <label for="loginUser">Username</label>
-          <input id="loginUser" type="text" autocomplete="username" placeholder="Your username" required />
+          <label for="forgotEmail">Email</label>
+          <input id="forgotEmail" type="email" autocomplete="email" placeholder="your@email.com" required />
         </div>
-        <div class="field">
-          <label for="loginPass">Password</label>
-          <input id="loginPass" type="password" autocomplete="current-password" placeholder="Your password" required />
+        <p id="forgotError" class="form-error hidden"></p>
+        <p id="forgotSuccess" class="form-success hidden"></p>
+        <button type="submit" class="btn btn-primary btn-full">Send Reset Email</button>
+        <div class="auth-links">
+          <button type="button" id="backToLoginBtn" class="link-btn">← Back to Sign In</button>
         </div>
-        <p id="loginError" class="form-error hidden"></p>
-        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
       </form>
     </div>
   </div>
 
-  <!-- ────────────────────────────── MAIN APP ────────────────────────────── -->
+  <!-- ──────────────────────── MAIN APP ──────────────────────── -->
   <div id="app" class="app hidden">
 
-    <!-- Top Navbar -->
+    <!-- Navbar -->
     <header class="navbar">
       <div class="navbar-left">
         <button id="sidebarToggle" class="icon-btn" title="Toggle sidebar" aria-label="Toggle sidebar">
@@ -67,47 +128,46 @@
       </div>
       <div class="navbar-right">
         <span id="navUsername" class="nav-username"></span>
+        <button id="settingsBtn" class="btn btn-ghost btn-sm">⚙ Settings</button>
         <button id="logoutBtn" class="btn btn-ghost btn-sm">Logout</button>
       </div>
     </header>
 
     <div class="main-layout">
 
-      <!-- ── Sidebar ── -->
+      <!-- Sidebar -->
       <aside id="sidebar" class="sidebar">
         <div class="sidebar-header">
           <span class="sidebar-title">Courses</span>
-          <!-- Manage toolbar (toggles) -->
-          <button id="manageToggle" class="btn btn-sm btn-outline" title="Manage courses & semesters">Manage ▾</button>
+          <button id="manageToggle" class="btn btn-sm btn-outline" title="Manage courses &amp; semesters">Manage ▾</button>
         </div>
-
-        <!-- Manage toolbar (expanded) -->
         <div id="manageToolbar" class="manage-toolbar hidden">
-          <button id="addSemesterBtn" class="toolbar-btn" title="Add semester">
+          <button id="addSemesterBtn" class="toolbar-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Semester
           </button>
-          <button id="addCourseBtn" class="toolbar-btn" title="Add course">
+          <button id="addCourseBtn" class="toolbar-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Course
           </button>
         </div>
-
-        <!-- Tree -->
         <nav id="courseTree" class="course-tree" aria-label="Course tree"></nav>
       </aside>
 
-      <!-- ── Note Panel ── -->
+      <!-- Note Panel -->
       <main id="notePanel" class="note-panel">
 
-        <!-- Empty state -->
         <div id="emptyState" class="empty-state">
           <span class="empty-icon">📚</span>
-          <h2>Select a course</h2>
-          <p>Choose a course from the sidebar to view and manage its notes.</p>
+          <h2>Select a term</h2>
+          <p>Choose a course's Midterm or Final from the sidebar to view and manage notes.</p>
         </div>
 
-        <!-- Course view -->
+        <div id="loadingState" class="loading-state hidden">
+          <div class="spinner"></div>
+          <p>Loading notes…</p>
+        </div>
+
         <div id="courseView" class="course-view hidden">
           <div class="course-header">
             <div class="course-title-row">
@@ -118,15 +178,13 @@
                   Upload Notes
                 </label>
                 <input id="noteUpload" type="file" accept="image/*" multiple class="hidden" aria-label="Upload note images" />
+                <button id="exportPdfBtn" class="btn btn-outline btn-sm">📄 Export PDF</button>
+                <button id="shareBtn" class="btn btn-outline btn-sm">🔗 Share</button>
               </div>
             </div>
             <p id="courseNoteCount" class="note-count"></p>
           </div>
-
-          <!-- Note gallery -->
           <div id="noteGallery" class="note-gallery"></div>
-
-          <!-- Gallery empty state -->
           <div id="galleryEmpty" class="gallery-empty hidden">
             <span>🗒️</span>
             <p>No notes yet. Click <strong>Upload Notes</strong> to add images.</p>
@@ -137,9 +195,9 @@
     </div>
   </div>
 
-  <!-- ────────────────────────────── MODALS ────────────────────────────── -->
+  <!-- ──────────────────────── MODALS ──────────────────────── -->
 
-  <!-- Generic text-input modal (semester name, course name, rename) -->
+  <!-- Generic text input -->
   <div id="inputModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
     <div class="modal">
       <h3 id="inputModalTitle"></h3>
@@ -154,7 +212,7 @@
     </div>
   </div>
 
-  <!-- Confirm / delete modal -->
+  <!-- Confirm / delete -->
   <div id="confirmModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
     <div class="modal">
       <h3 id="confirmModalTitle">Are you sure?</h3>
@@ -166,7 +224,7 @@
     </div>
   </div>
 
-  <!-- Note lightbox viewer -->
+  <!-- Lightbox -->
   <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Note viewer">
     <div class="lightbox-overlay" id="lightboxOverlay"></div>
     <div class="lightbox-content">
@@ -178,9 +236,116 @@
         <span id="lightboxIndex"></span>
         <span id="lightboxName"></span>
       </div>
+      <div class="lightbox-actions">
+        <label class="btn btn-ghost btn-sm lightbox-replace-label" id="lightboxReplaceLabel" title="Replace this image">
+          🔄 Replace This Image
+          <input id="lightboxReplaceInput" type="file" accept="image/*" class="hidden" />
+        </label>
+      </div>
     </div>
   </div>
 
+  <!-- Account Settings -->
+  <div id="settingsModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
+    <div class="modal modal-wide">
+      <h3>Account Settings</h3>
+      <div class="settings-section">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="settingsUsername" class="readonly-input" readonly />
+        </div>
+      </div>
+      <div class="settings-section">
+        <h4>Change Email</h4>
+        <div class="field">
+          <label for="settingsNewEmail">New Email</label>
+          <input id="settingsNewEmail" type="email" placeholder="new@email.com" />
+        </div>
+        <div class="field">
+          <label for="settingsEmailCurrPass">Current Password (to confirm)</label>
+          <input id="settingsEmailCurrPass" type="password" placeholder="Current password" />
+        </div>
+        <p id="settingsEmailMsg" class="form-msg hidden"></p>
+        <button id="settingsUpdateEmailBtn" class="btn btn-primary btn-sm">Update Email</button>
+      </div>
+      <div class="settings-section">
+        <h4>Change Password</h4>
+        <div class="field">
+          <label for="settingsCurrPass">Current Password</label>
+          <input id="settingsCurrPass" type="password" placeholder="Current password" />
+        </div>
+        <div class="field">
+          <label for="settingsNewPass">New Password</label>
+          <input id="settingsNewPass" type="password" placeholder="New password (min 6 chars)" />
+        </div>
+        <div class="field">
+          <label for="settingsConfirmPass">Confirm New Password</label>
+          <input id="settingsConfirmPass" type="password" placeholder="Repeat new password" />
+        </div>
+        <p id="settingsPassMsg" class="form-msg hidden"></p>
+        <button id="settingsUpdatePassBtn" class="btn btn-primary btn-sm">Update Password</button>
+      </div>
+      <div class="modal-actions">
+        <button id="settingsCloseBtn" class="btn btn-ghost">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Export -->
+  <div id="pdfModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
+    <div class="modal modal-wide">
+      <h3>Export PDF</h3>
+      <div class="pdf-options">
+        <label class="radio-option">
+          <input type="radio" name="pdfMode" value="all" checked /> All Pages
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="pdfMode" value="selected" /> Selected Pages Only
+        </label>
+      </div>
+      <div id="pdfPagePicker" class="pdf-page-picker hidden">
+        <p class="pdf-picker-hint">Click to toggle page selection:</p>
+        <div id="pdfPageGrid" class="pdf-page-grid"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="pdfModalCancel" class="btn btn-ghost">Cancel</button>
+        <button id="pdfModalExport" class="btn btn-primary">Export PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share -->
+  <div id="shareModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
+    <div class="modal modal-wide">
+      <h3 id="shareModalTitle">Share Notes</h3>
+      <div id="shareExistingSection" class="hidden">
+        <p>This term is already shared. Copy or revoke the link below:</p>
+        <div class="share-link-row">
+          <input id="shareLinkText" type="text" class="share-link-text" readonly />
+          <button id="copyShareLinkBtn" class="btn btn-outline btn-sm">Copy</button>
+        </div>
+        <p id="shareCopyMsg" class="form-msg hidden"></p>
+      </div>
+      <div id="shareNewSection" class="hidden">
+        <p>Generate a shareable link for this term's notes. Anyone with the link can view them.</p>
+      </div>
+      <p id="shareMsg" class="form-msg hidden"></p>
+      <div class="modal-actions">
+        <button id="shareModalClose" class="btn btn-ghost">Close</button>
+        <button id="revokeShareBtn" class="btn btn-danger btn-sm hidden">Revoke Link</button>
+        <button id="generateShareBtn" class="btn btn-primary btn-sm hidden">Generate Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs (compat v10.12.2) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- App -->
+  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

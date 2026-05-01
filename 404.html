@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Notekori</title>
+  <script>
+    // GitHub Pages SPA redirect
+    // Stores the full path in sessionStorage and redirects to index.html
+    // so that the hash-based router in app.js can handle it.
+    var l = window.location;
+    // Only redirect if there's a real path (not just the root)
+    if (l.pathname !== '/') {
+      sessionStorage.setItem(
+        'spa_redirect',
+        l.pathname.slice(1) + (l.search ? l.search : '') + l.hash
+      );
+      l.replace(l.protocol + '//' + l.host + '/');
+    }
+  </script>
+</head>
+<body>Redirecting…</body>
+</html>
