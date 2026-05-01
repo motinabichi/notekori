@@ -995,6 +995,8 @@ $('pdfModalCancel').addEventListener('click', () => hideEl('pdfModal'));
 
 $('pdfModalExport').addEventListener('click', async () => {
   const mode = document.querySelector('input[name="pdfMode"]:checked').value;
+  const sizeMode = document.querySelector('input[name="pdfSize"]:checked').value; 
+  
   let notesToExport = pdfNotes;
   if (mode === 'selected') {
     const selected = Array.from($('pdfPageGrid').querySelectorAll('.pdf-page-thumb.selected'))
@@ -1005,24 +1007,54 @@ $('pdfModalExport').addEventListener('click', async () => {
   if (notesToExport.length === 0) { alert('No pages selected.'); return; }
   hideEl('pdfModal');
   const filename = [currentCourseName, currentTermName].filter(Boolean).join(' - ') || 'notes';
-  await exportToPDF(notesToExport, filename);
+  await exportToPDF(notesToExport, filename, sizeMode); 
 });
 
-async function exportToPDF(notes, filename) {
+async function exportToPDF(notes, filename, sizeMode) {
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const W   = pdf.internal.pageSize.getWidth();
-  const H   = pdf.internal.pageSize.getHeight();
+  let pdf;
+
   for (let i = 0; i < notes.length; i++) {
-    if (i > 0) pdf.addPage();
     const img = new Image();
     img.src = notes[i].dataUrl;
     await new Promise(r => { img.onload = r; if (img.complete) r(); });
-    const ratio = Math.min(W / img.width, H / img.height);
-    const w = img.width * ratio, h = img.height * ratio;
-    const x = (W - w) / 2,     y = (H - h) / 2;
-    pdf.addImage(notes[i].dataUrl, 'JPEG', x, y, w, h);
+
+    const pxToMm = 0.264583;
+    const imgWidthMm = img.width * pxToMm;
+    const imgHeightMm = img.height * pxToMm;
+
+    let targetWidth, targetHeight;
+    let format;
+
+    if (sizeMode === 'a4') {
+      format = 'a4';
+    } else if (sizeMode === 'letter') {
+      format = 'letter';
+    } else {
+      format = [imgWidthMm, imgHeightMm];
+    }
+
+    if (i === 0) {
+      pdf = new jsPDF('p', 'mm', format);
+    } else {
+      pdf.addPage(format, 'p');
+    }
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    if (sizeMode === 'original') {
+      pdf.addImage(notes[i].dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight);
+    } else {
+      const ratio = Math.min(pageWidth / imgWidthMm, pageHeight / imgHeightMm);
+      const w = imgWidthMm * ratio;
+      const h = imgHeightMm * ratio;
+      const x = (pageWidth - w) / 2;
+      const y = (pageHeight - h) / 2;
+      pdf.addImage(notes[i].dataUrl, 'JPEG', x, y, w, h);
+    }
   }
+  
   pdf.save(filename + '.pdf');
 }
 
