@@ -28,7 +28,9 @@ let dragSrcIndex        = null;
 let saveUserDataTimer   = null;
 const openSemesters     = new Set();
 const openCourses       = new Set();
-let isReorderMode       = false; // NEW: Tracks if we are reordering
+let isReorderMode       = false; 
+let isSelectMode        = false; // NEW: Tracks bulk selection mode
+let selectedNotes       = new Set(); // NEW: Stores selected note IDs
 
 /* =====================================================================
    UTILITIES
@@ -337,7 +339,6 @@ $('manageToggle').addEventListener('click', () => {
   $('manageToggle').textContent = open ? 'Manage ▾' : 'Manage ▴';
 });
 
-// REORDER & SEARCH LOGIC
 if ($('toggleReorderBtn')) {
   $('toggleReorderBtn').addEventListener('click', () => {
     isReorderMode = !isReorderMode;
@@ -536,7 +537,7 @@ function pickTarget() {
 }
 
 /* =====================================================================
-   RENDER SIDEBAR TREE (WITH SEARCH & REORDER)
+   RENDER SIDEBAR TREE
    ===================================================================== */
 function renderTree(query = '') {
   const tree = $('courseTree');
@@ -686,6 +687,9 @@ async function selectTerm(courseId, termId, semId, courseName, termName, semeste
   currentCourseName   = courseName;
   currentTermName     = termName;
   currentSemesterName = semesterName;
+  
+  isSelectMode = false; // Reset select mode when changing terms
+  selectedNotes.clear();
 
   openCourses.add(courseId);
   renderTree();
@@ -722,8 +726,8 @@ function showEmptyState() {
 function showCourseView() {
   hideEl('emptyState');
   showEl('courseView');
+  updateSelectUI(); // Updates toolbar and renders gallery
   updateCourseViewTitle();
-  renderGallery(currentNotes);
 }
 
 function updateCourseViewTitle() {
@@ -767,6 +771,97 @@ $('noteUpload').addEventListener('change', async e => {
 });
 
 /* =====================================================================
+   BULK SELECTION LOGIC
+   ===================================================================== */
+if ($('toggleSelectBtn')) {
+  $('toggleSelectBtn').addEventListener('click', () => {
+    isSelectMode = !isSelectMode;
+    selectedNotes.clear();
+    updateSelectUI();
+  });
+}
+
+if ($('cancelSelectBtn')) {
+  $('cancelSelectBtn').addEventListener('click', () => {
+    isSelectMode = false;
+    selectedNotes.clear();
+    updateSelectUI();
+  });
+}
+
+if ($('selectAllBtn')) {
+  $('selectAllBtn').addEventListener('click', () => {
+    if (selectedNotes.size === currentNotes.length) {
+      selectedNotes.clear(); // Deselect all if all are already selected
+    } else {
+      currentNotes.forEach(n => selectedNotes.add(n.id));
+    }
+    updateSelectUI();
+  });
+}
+
+if ($('deleteSelectedBtn')) {
+  $('deleteSelectedBtn').addEventListener('click', async () => {
+    if (selectedNotes.size === 0) return;
+    const ok = await showConfirmModal({
+      title: 'Delete Selected', 
+      message: `Are you sure you want to delete ${selectedNotes.size} notes? This cannot be undone.`
+    });
+    if (!ok) return;
+    
+    try {
+      const batch = db.batch();
+      selectedNotes.forEach(noteId => {
+        const ref = db.collection('users').doc(currentUser.uid).collection('notes').doc(noteId);
+        batch.delete(ref);
+      });
+      await batch.commit();
+      
+      // Update local array and re-order remaining notes
+      currentNotes = currentNotes.filter(n => !selectedNotes.has(n.id));
+      currentNotes.forEach((n, i) => { n.order = i; });
+      
+      if (currentNotes.length > 0) {
+        const updateBatch = db.batch();
+        currentNotes.forEach(n => {
+          const ref = db.collection('users').doc(currentUser.uid).collection('notes').doc(n.id);
+          updateBatch.update(ref, { order: n.order });
+        });
+        await updateBatch.commit();
+      }
+      
+      isSelectMode = false;
+      selectedNotes.clear();
+      updateSelectUI();
+      updateCourseViewTitle();
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+      alert('Failed to delete some notes. Please try again.');
+    }
+  });
+}
+
+function updateSelectUI() {
+  if (isSelectMode) {
+    showEl('selectionToolbar');
+    $('noteGallery').classList.add('gallery-select-mode');
+    $('toggleSelectBtn').style.background = 'var(--primary)';
+    $('toggleSelectBtn').style.color = 'white';
+  } else {
+    if ($('selectionToolbar')) hideEl('selectionToolbar');
+    $('noteGallery').classList.remove('gallery-select-mode');
+    $('toggleSelectBtn').style.background = '';
+    $('toggleSelectBtn').style.color = '';
+  }
+  
+  if ($('selectionCount')) {
+    $('selectionCount').textContent = `${selectedNotes.size} note${selectedNotes.size !== 1 ? 's' : ''} selected`;
+  }
+  
+  renderGallery(currentNotes);
+}
+
+/* =====================================================================
    GALLERY & REORDER NOTES
    ===================================================================== */
 function renderGallery(notes) {
@@ -789,7 +884,12 @@ function buildNoteCard(note, idx) {
   card.className = 'note-card';
   card.dataset.noteId = note.id;
   card.dataset.idx    = idx;
-  card.draggable      = true;
+  
+  // NEW: Add visual checkmark element for selection
+  const checkmark = document.createElement('div');
+  checkmark.className = 'note-checkmark';
+  checkmark.textContent = '✓';
+  card.appendChild(checkmark);
 
   const img = document.createElement('img');
   img.className  = 'note-thumb';
@@ -797,8 +897,7 @@ function buildNoteCard(note, idx) {
   img.alt        = note.name;
   img.title      = note.name;
   img.loading    = 'lazy';
-  img.addEventListener('click', () => openLightbox(idx));
-
+  
   const footer = document.createElement('div');
   footer.className = 'note-card-footer';
   footer.innerHTML =
@@ -806,6 +905,7 @@ function buildNoteCard(note, idx) {
     '<span class="note-card-actions">' +
       '<button class="note-card-btn del" title="Delete note">\ud83d\uddd1</button>' +
     '</span>';
+    
   footer.querySelector('.del').addEventListener('click', e => {
     e.stopPropagation();
     deleteNote(note.id);
@@ -814,28 +914,48 @@ function buildNoteCard(note, idx) {
   card.appendChild(img);
   card.appendChild(footer);
 
-  card.addEventListener('dragstart', e => {
-    dragSrcIndex = idx;
-    card.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-  });
-  card.addEventListener('dragend', () => {
-    card.classList.remove('dragging');
-    document.querySelectorAll('.note-card').forEach(c => c.classList.remove('drag-over'));
-  });
-  card.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    document.querySelectorAll('.note-card').forEach(c => c.classList.remove('drag-over'));
-    card.classList.add('drag-over');
-  });
-  card.addEventListener('drop', async e => {
-    e.preventDefault();
-    card.classList.remove('drag-over');
-    if (dragSrcIndex === null || dragSrcIndex === idx) return;
-    await reorderNotes(dragSrcIndex, idx);
-    dragSrcIndex = null;
-  });
+  // Behavior changes based on Select Mode vs Normal Mode
+  if (isSelectMode) {
+    card.classList.add('selectable');
+    if (selectedNotes.has(note.id)) card.classList.add('selected');
+    
+    card.addEventListener('click', () => {
+      if (selectedNotes.has(note.id)) {
+        selectedNotes.delete(note.id);
+        card.classList.remove('selected');
+      } else {
+        selectedNotes.add(note.id);
+        card.classList.add('selected');
+      }
+      $('selectionCount').textContent = `${selectedNotes.size} note${selectedNotes.size !== 1 ? 's' : ''} selected`;
+    });
+  } else {
+    card.draggable = true;
+    img.addEventListener('click', () => openLightbox(idx));
+    
+    card.addEventListener('dragstart', e => {
+      dragSrcIndex = idx;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.note-card').forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.note-card').forEach(c => c.classList.remove('drag-over'));
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('drop', async e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      if (dragSrcIndex === null || dragSrcIndex === idx) return;
+      await reorderNotes(dragSrcIndex, idx);
+      dragSrcIndex = null;
+    });
+  }
 
   return card;
 }
@@ -953,7 +1073,7 @@ $('lightboxReplaceInput').addEventListener('change', async e => {
 });
 
 /* =====================================================================
-   PDF EXPORT (WITH NEW SIZING LOGIC)
+   PDF EXPORT
    ===================================================================== */
 $('exportPdfBtn').addEventListener('click', () => {
   if (currentNotes.length === 0) { alert('No notes to export.'); return; }
@@ -1000,8 +1120,6 @@ $('pdfModalCancel').addEventListener('click', () => hideEl('pdfModal'));
 
 $('pdfModalExport').addEventListener('click', async () => {
   const mode = document.querySelector('input[name="pdfMode"]:checked').value;
-  
-  // Provide fallback if size radio buttons aren't found yet
   const sizeInput = document.querySelector('input[name="pdfSize"]:checked');
   const sizeMode = sizeInput ? sizeInput.value : 'original'; 
   
@@ -1035,12 +1153,9 @@ async function exportToPDF(notes, filename, sizeMode) {
     let orientation;
 
     if (sizeMode === 'original') {
-      // Provide exact absolute dimensions. 
-      // We MUST use 'p' here so jsPDF doesn't accidentally flip our custom dimensions.
       format = [imgWidthMm, imgHeightMm];
       orientation = 'p'; 
     } else {
-      // For A4 and Letter, check if image is wide or tall to rotate the paper nicely
       format = sizeMode === 'a4' ? 'a4' : 'letter';
       orientation = imgWidthMm > imgHeightMm ? 'l' : 'p';
     }
@@ -1055,10 +1170,8 @@ async function exportToPDF(notes, filename, sizeMode) {
     const pageHeight = pdf.internal.pageSize.getHeight();
 
     if (sizeMode === 'original') {
-      // Draw edge-to-edge
       pdf.addImage(notes[i].dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight);
     } else {
-      // Center on A4/Letter
       const ratio = Math.min(pageWidth / imgWidthMm, pageHeight / imgHeightMm);
       const w = imgWidthMm * ratio;
       const h = imgHeightMm * ratio;
