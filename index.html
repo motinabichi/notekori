@@ -183,10 +183,13 @@
         </div>
 
         <div id="courseView" class="course-view hidden">
-          <div class="course-header">
+<div class="course-header">
             <div class="course-title-row">
               <h2 id="courseViewTitle"></h2>
               <div class="course-actions">
+                <!-- NEW SELECT BUTTON -->
+                <button id="toggleSelectBtn" class="btn btn-outline btn-sm">☑ Select</button>
+                
                 <label class="btn btn-primary btn-sm" for="noteUpload" title="Upload notes">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
                   Upload Notes
@@ -198,12 +201,16 @@
             </div>
             <p id="courseNoteCount" class="note-count"></p>
           </div>
-          <div id="noteGallery" class="note-gallery"></div>
-          <div id="galleryEmpty" class="gallery-empty hidden">
-            <span>🗒️</span>
-            <p>No notes yet. Click <strong>Upload Notes</strong> to add images.</p>
+
+          <!-- NEW SELECTION TOOLBAR -->
+          <div id="selectionToolbar" class="selection-toolbar hidden">
+            <span id="selectionCount" style="font-weight: 600;">0 selected</span>
+            <div class="selection-actions">
+              <button id="selectAllBtn" class="btn btn-outline btn-sm">Select All</button>
+              <button id="deleteSelectedBtn" class="btn btn-danger btn-sm">Delete Selected</button>
+              <button id="cancelSelectBtn" class="btn btn-ghost btn-sm">Cancel</button>
+            </div>
           </div>
-        </div>
 
       </main>
     </div>
