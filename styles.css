@@ -679,3 +679,34 @@ ul, ol { list-style: none; }
   background: var(--primary);
   color: #fff;
 }
+
+
+/* =====================================================================
+   BULK SELECTION STYLES
+   ===================================================================== */
+.selection-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #eef1fe; border: 1px solid var(--primary);
+  padding: 0.75rem 1rem; border-radius: var(--radius-sm);
+  margin-bottom: 1.25rem;
+}
+.selection-actions { display: flex; gap: 0.5rem; }
+
+.note-card.selectable { cursor: pointer; transition: transform 0.1s; }
+.note-card.selectable:hover { outline: 2px solid var(--border); }
+.note-card.selected { outline: 3px solid var(--primary) !important; transform: scale(0.96); }
+
+.note-checkmark {
+  position: absolute; top: 10px; left: 10px;
+  background: var(--primary); color: white;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold; font-size: 14px;
+  opacity: 0; transition: opacity 0.2s;
+  pointer-events: none; z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+.note-card.selected .note-checkmark { opacity: 1; }
+
+/* Hide standard buttons when in select mode */
+.gallery-select-mode .note-card-actions { display: none; }
