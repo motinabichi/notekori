@@ -647,3 +647,35 @@ ul, ol { list-style: none; }
 }
 
 #confirmModal.modal-backdrop { z-index: 9999 !important; }
+
+/* Sidebar Search Bar */
+.sidebar-search {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.sidebar-search input {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  background: var(--surface-2);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.sidebar-search input:focus {
+  border-color: var(--primary);
+  background: var(--surface);
+}
+
+/* Reorder Mode Arrows */
+.tree-action-btn.reorder-btn {
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 0.1rem 0.35rem;
+}
+.tree-action-btn.reorder-btn:hover {
+  background: var(--primary);
+  color: #fff;
+}
