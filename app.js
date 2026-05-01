@@ -4,18 +4,35 @@
  */
 
 /* =====================================================================
-   CONSTANTS
+   CONSTANTS & STATE
    ===================================================================== */
-
 const TERMS = [
   { id: 'midterm', name: 'Midterm' },
   { id: 'final',   name: 'Final'   }
 ];
 
+let currentUser      = null;
+let userData         = null;   
+let activeCourseId   = null;
+let activeTermId     = null;   
+let activeSemesterId = null;   
+let currentNotes     = [];
+let currentCourseName   = '';
+let currentTermName     = '';
+let currentSemesterName = '';
+let pdfNotes            = [];
+let lightboxNotes       = [];
+let lightboxCurrent     = 0;
+let lightboxIsShared    = false;
+let dragSrcIndex        = null;
+let saveUserDataTimer   = null;
+const openSemesters     = new Set();
+const openCourses       = new Set();
+let isReorderMode       = false; // NEW: Tracks if we are reordering
+
 /* =====================================================================
    UTILITIES
    ===================================================================== */
-
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
@@ -83,7 +100,6 @@ function friendlyAuthError(err) {
 /* =====================================================================
    FIREBASE SETUP
    ===================================================================== */
-
 let auth, db;
 let firebaseReady = false;
 
@@ -101,57 +117,22 @@ try {
 }
 
 /* =====================================================================
-   STATE
+   DOM HELPER & ROUTING
    ===================================================================== */
-
-let currentUser      = null;
-let userData         = null;   // { username, semesters, looseCourses, shareLinks }
-let activeCourseId   = null;
-let activeTermId     = null;   // 'midterm' | 'final'
-let activeSemesterId = null;   // semester id | 'loose'
-let currentNotes     = [];
-let currentCourseName   = '';
-let currentTermName     = '';
-let currentSemesterName = '';
-let pdfNotes            = [];
-let lightboxNotes       = [];
-let lightboxCurrent     = 0;
-let lightboxIsShared    = false;
-let dragSrcIndex        = null;
-let saveUserDataTimer   = null;
-const openSemesters     = new Set();
-const openCourses       = new Set();
-
-/* =====================================================================
-   DOM HELPER
-   ===================================================================== */
-
 const $ = id => document.getElementById(id);
 const showEl = id => $(id).classList.remove('hidden');
 const hideEl = id => $(id).classList.add('hidden');
 
-/* =====================================================================
-   ROUTING
-   ===================================================================== */
-
-function getHashPath() {
-  return location.hash.replace(/^#/, '');
-}
-
-function isShareRoute() {
-  return getHashPath().startsWith('/share/');
-}
-
+function getHashPath() { return location.hash.replace(/^#/, ''); }
+function isShareRoute() { return getHashPath().startsWith('/share/'); }
 function parseShareCode() {
   const segments = getHashPath().split('/').filter(Boolean);
-  // Last segment is always the code
   return segments[segments.length - 1] || null;
 }
 
 /* =====================================================================
    INIT
    ===================================================================== */
-
 window.addEventListener('load', () => {
   if (!firebaseReady) {
     document.body.innerHTML =
@@ -183,7 +164,6 @@ window.addEventListener('load', () => {
 /* =====================================================================
    AUTH UI
    ===================================================================== */
-
 function showAuthUI() {
   hideEl('app');
   hideEl('sharedView');
@@ -202,7 +182,6 @@ $('showLoginBtn')  .addEventListener('click', () => showAuthForm('loginForm'));
 $('showForgotBtn') .addEventListener('click', () => showAuthForm('forgotForm'));
 $('backToLoginBtn').addEventListener('click', () => showAuthForm('loginForm'));
 
-/* ── Sign In ── */
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
   const input    = $('loginUser').value.trim();
@@ -210,13 +189,10 @@ $('loginForm').addEventListener('submit', async e => {
   const errEl    = $('loginError');
   hideEl('loginError');
 
-  if (!input || !password) {
-    setFormError(errEl, 'Please fill in all fields.'); return;
-  }
+  if (!input || !password) { setFormError(errEl, 'Please fill in all fields.'); return; }
 
   let email = input;
   if (!input.includes('@')) {
-    // Username lookup
     try {
       const snap = await db.collection('usernames').doc(input.toLowerCase()).get();
       if (!snap.exists) { setFormError(errEl, 'Username not found.'); return; }
@@ -228,13 +204,11 @@ $('loginForm').addEventListener('submit', async e => {
 
   try {
     await auth.signInWithEmailAndPassword(email, password);
-    // onAuthStateChanged fires → initApp()
   } catch (err) {
     setFormError(errEl, friendlyAuthError(err));
   }
 });
 
-/* ── Sign Up ── */
 $('setupForm').addEventListener('submit', async e => {
   e.preventDefault();
   const username = $('setupUser').value.trim().toLowerCase();
@@ -262,13 +236,11 @@ $('setupForm').addEventListener('submit', async e => {
     const newUserData = { username, semesters: [], looseCourses: [], shareLinks: {} };
     await db.collection('users').doc(newUid).set(newUserData);
     await db.collection('usernames').doc(username).set({ uid: newUid, email });
-    // onAuthStateChanged fires
   } catch (err) {
     setFormError(errEl, friendlyAuthError(err));
   }
 });
 
-/* ── Forgot Password ── */
 $('forgotForm').addEventListener('submit', async e => {
   e.preventDefault();
   const email = $('forgotEmail').value.trim();
@@ -294,7 +266,6 @@ function setFormError(el, msg) {
 /* =====================================================================
    APP INIT
    ===================================================================== */
-
 async function initApp() {
   try {
     await loadUserData();
@@ -339,7 +310,6 @@ async function saveUserDataNow() {
 /* =====================================================================
    LOGOUT
    ===================================================================== */
-
 $('logoutBtn').addEventListener('click', async () => {
   await saveUserDataNow();
   activeCourseId   = null;
@@ -352,20 +322,14 @@ $('logoutBtn').addEventListener('click', async () => {
   $('loginPass').value = '';
   hideEl('loginError');
   await auth.signOut();
-  // onAuthStateChanged fires → showAuthUI()
 });
 
 /* =====================================================================
-   SIDEBAR TOGGLE
+   SIDEBAR, SEARCH & REORDER
    ===================================================================== */
-
 $('sidebarToggle').addEventListener('click', () => {
   $('sidebar').classList.toggle('collapsed');
 });
-
-/* =====================================================================
-   MANAGE TOOLBAR
-   ===================================================================== */
 
 $('manageToggle').addEventListener('click', () => {
   const open = !$('manageToolbar').classList.contains('hidden');
@@ -373,10 +337,36 @@ $('manageToggle').addEventListener('click', () => {
   $('manageToggle').textContent = open ? 'Manage ▾' : 'Manage ▴';
 });
 
+// REORDER & SEARCH LOGIC
+if ($('toggleReorderBtn')) {
+  $('toggleReorderBtn').addEventListener('click', () => {
+    isReorderMode = !isReorderMode;
+    $('toggleReorderBtn').style.fontWeight = isReorderMode ? 'bold' : 'normal';
+    $('toggleReorderBtn').style.color = isReorderMode ? 'var(--primary)' : '';
+    const query = $('courseSearch') ? $('courseSearch').value.toLowerCase() : '';
+    renderTree(query);
+  });
+}
+
+if ($('courseSearch')) {
+  $('courseSearch').addEventListener('input', (e) => {
+    renderTree(e.target.value.toLowerCase());
+  });
+}
+
+function moveItem(array, index, direction) {
+  if (index + direction < 0 || index + direction >= array.length) return;
+  const temp = array[index];
+  array[index] = array[index + direction];
+  array[index + direction] = temp;
+  debouncedSaveUserData();
+  const query = $('courseSearch') ? $('courseSearch').value.toLowerCase() : '';
+  renderTree(query);
+}
+
 /* =====================================================================
    SEMESTER CRUD
    ===================================================================== */
-
 $('addSemesterBtn').addEventListener('click', async () => {
   const name = await showInputModal({
     title: 'New Semester', label: 'Semester name', placeholder: 'e.g. Spring 2024'
@@ -423,7 +413,6 @@ async function deleteSemester(semId) {
 /* =====================================================================
    COURSE CRUD
    ===================================================================== */
-
 $('addCourseBtn').addEventListener('click', async () => {
   const target = await pickTarget();
   if (target === null) return;
@@ -506,10 +495,6 @@ async function deleteTermNotes(courseId, termId) {
   }
 }
 
-/* =====================================================================
-   FIND HELPERS
-   ===================================================================== */
-
 function findCourse(courseId) {
   for (const sem of userData.semesters) {
     const c = sem.courses.find(c => c.id === courseId);
@@ -517,10 +502,6 @@ function findCourse(courseId) {
   }
   return userData.looseCourses.find(c => c.id === courseId) || null;
 }
-
-/* =====================================================================
-   PICK TARGET
-   ===================================================================== */
 
 function pickTarget() {
   return new Promise(resolve => {
@@ -555,32 +536,49 @@ function pickTarget() {
 }
 
 /* =====================================================================
-   RENDER SIDEBAR TREE
+   RENDER SIDEBAR TREE (WITH SEARCH & REORDER)
    ===================================================================== */
-
-function renderTree() {
+function renderTree(query = '') {
   const tree = $('courseTree');
   tree.innerHTML = '';
 
-  userData.semesters.forEach(sem => {
+  userData.semesters.forEach((sem, sIdx) => {
+    const matchesSem = sem.name.toLowerCase().includes(query);
+    const matchedCourses = sem.courses.filter(c => c.name.toLowerCase().includes(query));
+
+    if (query && !matchesSem && matchedCourses.length === 0) return;
+
+    const isOpen = query ? true : openSemesters.has(sem.id);
     const item = document.createElement('div');
-    item.className = 'semester-item' + (openSemesters.has(sem.id) ? ' open' : '');
+    item.className = 'semester-item' + (isOpen ? ' open' : '');
+
+    let actionsHtml = '';
+    if (isReorderMode) {
+      actionsHtml = 
+        '<button class="tree-action-btn reorder-btn up" title="Move Up">↑</button>' +
+        '<button class="tree-action-btn reorder-btn down" title="Move Down">↓</button>';
+    } else {
+      actionsHtml = 
+        '<button class="tree-action-btn add" title="Add course">+</button>' +
+        '<button class="tree-action-btn edit" title="Rename">✎</button>' +
+        '<button class="tree-action-btn del" title="Delete">✕</button>';
+    }
 
     const header = document.createElement('div');
     header.className = 'semester-header';
     header.innerHTML =
-      '<span class="semester-chevron">\u25b6</span>' +
-      '<span class="semester-name" title="' + escHtml(sem.name) + '">\ud83d\udcc1 ' + escHtml(sem.name) + '</span>' +
-      '<span class="tree-item-actions">' +
-        '<button class="tree-action-btn" title="Add course">+</button>' +
-        '<button class="tree-action-btn" title="Rename">\u270e</button>' +
-        '<button class="tree-action-btn del" title="Delete">\u2715</button>' +
-      '</span>';
+      '<span class="semester-chevron">▶</span>' +
+      '<span class="semester-name" title="' + escHtml(sem.name) + '">📁 ' + escHtml(sem.name) + '</span>' +
+      '<span class="tree-item-actions" style="opacity:' + (isReorderMode ? '1' : '') + '">' + actionsHtml + '</span>';
 
-    const btns = header.querySelectorAll('.tree-action-btn');
-    btns[0].addEventListener('click', e => { e.stopPropagation(); addCourseToSemester(sem.id); });
-    btns[1].addEventListener('click', e => { e.stopPropagation(); renameSemester(sem.id); });
-    btns[2].addEventListener('click', e => { e.stopPropagation(); deleteSemester(sem.id); });
+    if (isReorderMode) {
+      header.querySelector('.up').onclick = (e) => { e.stopPropagation(); moveItem(userData.semesters, sIdx, -1); };
+      header.querySelector('.down').onclick = (e) => { e.stopPropagation(); moveItem(userData.semesters, sIdx, 1); };
+    } else {
+      header.querySelector('.add').onclick = (e) => { e.stopPropagation(); addCourseToSemester(sem.id); };
+      header.querySelector('.edit').onclick = (e) => { e.stopPropagation(); renameSemester(sem.id); };
+      header.querySelector('.del').onclick = (e) => { e.stopPropagation(); deleteSemester(sem.id); };
+    }
 
     header.addEventListener('click', e => {
       if (e.target.closest('.tree-item-actions')) return;
@@ -591,44 +589,63 @@ function renderTree() {
 
     const coursesEl = document.createElement('div');
     coursesEl.className = 'semester-courses';
-    sem.courses.forEach(course => coursesEl.appendChild(buildCourseEntry(course, sem.id, sem.name)));
+    
+    const coursesToRender = query ? matchedCourses : sem.courses;
+    coursesToRender.forEach((course, cIdx) => { 
+      coursesEl.appendChild(buildCourseEntry(course, sem.id, sem.name, sem.courses, cIdx)); 
+    });
 
     item.appendChild(header);
     item.appendChild(coursesEl);
     tree.appendChild(item);
   });
 
-  if (userData.looseCourses.length > 0) {
+  let matchedLoose = query ? userData.looseCourses.filter(c => c.name.toLowerCase().includes(query)) : userData.looseCourses;
+  if (matchedLoose.length > 0) {
     const loose = document.createElement('div');
     loose.className = 'loose-courses';
-    if (userData.semesters.length > 0) {
+    if (userData.semesters.length > 0 && !query) {
       const sep = document.createElement('div');
       sep.className = 'loose-sep';
       sep.textContent = 'Other Courses';
       loose.appendChild(sep);
     }
-    userData.looseCourses.forEach(course => loose.appendChild(buildCourseEntry(course, 'loose', '')));
+    matchedLoose.forEach((course, cIdx) => {
+      loose.appendChild(buildCourseEntry(course, 'loose', '', userData.looseCourses, cIdx));
+    });
     tree.appendChild(loose);
   }
 }
 
-function buildCourseEntry(course, semId, semesterName) {
+function buildCourseEntry(course, semId, semesterName, parentArray, cIdx) {
   const wrapper = document.createElement('div');
   wrapper.className = 'course-wrapper' + (openCourses.has(course.id) ? ' course-open' : '');
+
+  let actionsHtml = '';
+  if (isReorderMode) {
+    actionsHtml = 
+      '<button class="tree-action-btn reorder-btn up" title="Move Up">↑</button>' +
+      '<button class="tree-action-btn reorder-btn down" title="Move Down">↓</button>';
+  } else {
+    actionsHtml = 
+      '<button class="tree-action-btn edit" title="Rename">✎</button>' +
+      '<button class="tree-action-btn del" title="Delete">✕</button>';
+  }
 
   const row = document.createElement('div');
   row.className = 'course-row';
   row.innerHTML =
-    '<span class="course-icon">\ud83d\udcd2</span>' +
+    '<span class="course-icon">📔</span>' +
     '<span class="course-name" title="' + escHtml(course.name) + '">' + escHtml(course.name) + '</span>' +
-    '<span class="tree-item-actions">' +
-      '<button class="tree-action-btn" title="Rename">\u270e</button>' +
-      '<button class="tree-action-btn del" title="Delete">\u2715</button>' +
-    '</span>';
+    '<span class="tree-item-actions" style="opacity:' + (isReorderMode ? '1' : '') + '">' + actionsHtml + '</span>';
 
-  const btns = row.querySelectorAll('.tree-action-btn');
-  btns[0].addEventListener('click', e => { e.stopPropagation(); renameCourse(course.id); });
-  btns[1].addEventListener('click', e => { e.stopPropagation(); deleteCourse(course.id); });
+  if (isReorderMode) {
+    row.querySelector('.up').onclick = (e) => { e.stopPropagation(); moveItem(parentArray, cIdx, -1); };
+    row.querySelector('.down').onclick = (e) => { e.stopPropagation(); moveItem(parentArray, cIdx, 1); };
+  } else {
+    row.querySelector('.edit').onclick = (e) => { e.stopPropagation(); renameCourse(course.id); };
+    row.querySelector('.del').onclick = (e) => { e.stopPropagation(); deleteCourse(course.id); };
+  }
 
   row.addEventListener('click', e => {
     if (e.target.closest('.tree-item-actions')) return;
@@ -644,7 +661,7 @@ function buildCourseEntry(course, semId, semesterName) {
     const tr = document.createElement('div');
     tr.className = 'term-row' + (isActive ? ' active' : '');
     tr.innerHTML =
-      '<span class="term-icon">\ud83d\udcc4</span>' +
+      '<span class="term-icon">📄</span>' +
       '<span class="term-name">' + escHtml(term.name) + '</span>';
     tr.addEventListener('click', e => {
       e.stopPropagation();
@@ -662,7 +679,6 @@ function buildCourseEntry(course, semId, semesterName) {
 /* =====================================================================
    SELECT TERM & LOAD NOTES
    ===================================================================== */
-
 async function selectTerm(courseId, termId, semId, courseName, termName, semesterName) {
   activeCourseId      = courseId;
   activeTermId        = termId;
@@ -719,7 +735,6 @@ function updateCourseViewTitle() {
 /* =====================================================================
    NOTE UPLOAD
    ===================================================================== */
-
 $('noteUpload').addEventListener('change', async e => {
   const files = Array.from(e.target.files);
   if (!files.length || !activeCourseId || !activeTermId) return;
@@ -752,9 +767,8 @@ $('noteUpload').addEventListener('change', async e => {
 });
 
 /* =====================================================================
-   GALLERY
+   GALLERY & REORDER NOTES
    ===================================================================== */
-
 function renderGallery(notes) {
   const gallery = $('noteGallery');
   gallery.innerHTML = '';
@@ -800,7 +814,6 @@ function buildNoteCard(note, idx) {
   card.appendChild(img);
   card.appendChild(footer);
 
-  // Drag-and-drop
   card.addEventListener('dragstart', e => {
     dragSrcIndex = idx;
     card.classList.add('dragging');
@@ -827,10 +840,6 @@ function buildNoteCard(note, idx) {
   return card;
 }
 
-/* =====================================================================
-   REORDER
-   ===================================================================== */
-
 async function reorderNotes(fromIdx, toIdx) {
   const notes = [...currentNotes];
   const [moved] = notes.splice(fromIdx, 1);
@@ -850,10 +859,6 @@ async function reorderNotes(fromIdx, toIdx) {
   }
   renderGallery(currentNotes);
 }
-
-/* =====================================================================
-   DELETE NOTE
-   ===================================================================== */
 
 async function deleteNote(noteId) {
   const ok = await showConfirmModal({
@@ -882,7 +887,6 @@ async function deleteNote(noteId) {
 /* =====================================================================
    LIGHTBOX
    ===================================================================== */
-
 function openLightbox(idx, notes, isShared) {
   lightboxNotes    = notes || currentNotes;
   lightboxCurrent  = idx;
@@ -928,7 +932,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeLightbox();
 });
 
-/* ── Replace This Image ── */
 $('lightboxReplaceInput').addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file || lightboxIsShared) return;
@@ -950,9 +953,8 @@ $('lightboxReplaceInput').addEventListener('change', async e => {
 });
 
 /* =====================================================================
-   PDF EXPORT
+   PDF EXPORT (WITH NEW SIZING LOGIC)
    ===================================================================== */
-
 $('exportPdfBtn').addEventListener('click', () => {
   if (currentNotes.length === 0) { alert('No notes to export.'); return; }
   openPdfModal(currentNotes);
@@ -961,6 +963,9 @@ $('exportPdfBtn').addEventListener('click', () => {
 function openPdfModal(notes) {
   pdfNotes = notes;
   document.querySelector('input[name="pdfMode"][value="all"]').checked = true;
+  if(document.querySelector('input[name="pdfSize"][value="original"]')){
+     document.querySelector('input[name="pdfSize"][value="original"]').checked = true;
+  }
   hideEl('pdfPagePicker');
   showEl('pdfModal');
 }
@@ -995,7 +1000,10 @@ $('pdfModalCancel').addEventListener('click', () => hideEl('pdfModal'));
 
 $('pdfModalExport').addEventListener('click', async () => {
   const mode = document.querySelector('input[name="pdfMode"]:checked').value;
-  const sizeMode = document.querySelector('input[name="pdfSize"]:checked').value; 
+  
+  // Provide fallback if size radio buttons aren't found yet
+  const sizeInput = document.querySelector('input[name="pdfSize"]:checked');
+  const sizeMode = sizeInput ? sizeInput.value : 'original'; 
   
   let notesToExport = pdfNotes;
   if (mode === 'selected') {
@@ -1062,10 +1070,10 @@ async function exportToPDF(notes, filename, sizeMode) {
   
   pdf.save(filename + '.pdf');
 }
+
 /* =====================================================================
    SHARE SYSTEM
    ===================================================================== */
-
 $('shareBtn').addEventListener('click', openShareModal);
 
 async function openShareModal() {
@@ -1123,7 +1131,7 @@ $('generateShareBtn').addEventListener('click', async () => {
       enabled:      true,
       createdAt:    firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Snapshot notes
+    
     const batch = db.batch();
     currentNotes.forEach(note => {
       const ref = db.collection('sharedNotes').doc(code + '_' + note.id);
@@ -1175,7 +1183,6 @@ $('revokeShareBtn').addEventListener('click', async () => {
 /* =====================================================================
    ACCOUNT SETTINGS
    ===================================================================== */
-
 $('settingsBtn').addEventListener('click', () => {
   $('settingsUsername').value     = userData.username || '';
   $('settingsNewEmail').value     = currentUser.email || '';
@@ -1247,7 +1254,6 @@ function setMsg(el, msg, success) {
 /* =====================================================================
    SHARED PUBLIC VIEW
    ===================================================================== */
-
 async function showSharedView() {
   hideEl('loginOverlay');
   hideEl('app');
@@ -1304,12 +1310,10 @@ async function showSharedView() {
       gallery.appendChild(card);
     });
 
-    // PDF export from shared view
     $('sharedExportPdfBtn').addEventListener('click', () => {
       pdfNotes = notes;
       document.querySelector('input[name="pdfMode"][value="all"]').checked = true;
       hideEl('pdfPagePicker');
-      // Override filenames for shared view
       currentCourseName = shareData.courseName || 'Notes';
       currentTermName   = shareData.termName   || '';
       showEl('pdfModal');
@@ -1324,9 +1328,8 @@ async function showSharedView() {
 }
 
 /* =====================================================================
-   MODAL HELPERS (Promise-based)
+   MODAL HELPERS & BACKDROP CLOSE
    ===================================================================== */
-
 function showInputModal({ title, label, defaultValue = '', placeholder = '' }) {
   return new Promise(resolve => {
     $('inputModalTitle').textContent   = title;
@@ -1375,22 +1378,8 @@ function showConfirmModal({ title, message, confirmLabel = 'Delete' }) {
   });
 }
 
-/* =====================================================================
-   MODAL BACKDROP CLOSE
-   ===================================================================== */
-
-$('inputModal').addEventListener('click', e => {
-  if (e.target === $('inputModal')) $('inputModalCancel').click();
-});
-$('confirmModal').addEventListener('click', e => {
-  if (e.target === $('confirmModal')) $('confirmModalCancel').click();
-});
-$('settingsModal').addEventListener('click', e => {
-  if (e.target === $('settingsModal')) hideEl('settingsModal');
-});
-$('pdfModal').addEventListener('click', e => {
-  if (e.target === $('pdfModal')) hideEl('pdfModal');
-});
-$('shareModal').addEventListener('click', e => {
-  if (e.target === $('shareModal')) hideEl('shareModal');
-});
+$('inputModal').addEventListener('click', e => { if (e.target === $('inputModal')) $('inputModalCancel').click(); });
+$('confirmModal').addEventListener('click', e => { if (e.target === $('confirmModal')) $('confirmModalCancel').click(); });
+$('settingsModal').addEventListener('click', e => { if (e.target === $('settingsModal')) hideEl('settingsModal'); });
+$('pdfModal').addEventListener('click', e => { if (e.target === $('pdfModal')) hideEl('pdfModal'); });
+$('shareModal').addEventListener('click', e => { if (e.target === $('shareModal')) hideEl('shareModal'); });
