@@ -1023,8 +1023,10 @@ async function exportToPDF(notes, filename, sizeMode) {
     const imgWidthMm = img.width * pxToMm;
     const imgHeightMm = img.height * pxToMm;
 
-    let targetWidth, targetHeight;
     let format;
+    
+    // 🚀 NEW: Detect if the image is wider than it is tall (Landscape 'l' vs Portrait 'p')
+    const imageOrientation = imgWidthMm > imgHeightMm ? 'l' : 'p';
 
     if (sizeMode === 'a4') {
       format = 'a4';
@@ -1034,18 +1036,25 @@ async function exportToPDF(notes, filename, sizeMode) {
       format = [imgWidthMm, imgHeightMm];
     }
 
+    // 🚀 NEW: If "original" is selected, use the image's true orientation. Otherwise, use Portrait.
+    const pageOrientation = sizeMode === 'original' ? imageOrientation : 'p';
+
     if (i === 0) {
-      pdf = new jsPDF('p', 'mm', format);
+      // First page creation
+      pdf = new jsPDF(pageOrientation, 'mm', format);
     } else {
-      pdf.addPage(format, 'p');
+      // Adding subsequent pages
+      pdf.addPage(format, pageOrientation);
     }
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
     if (sizeMode === 'original') {
+      // Exactly fit the image to the page dimensions with ZERO margins
       pdf.addImage(notes[i].dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight);
     } else {
+      // For A4/Letter, center the image to avoid stretching
       const ratio = Math.min(pageWidth / imgWidthMm, pageHeight / imgHeightMm);
       const w = imgWidthMm * ratio;
       const h = imgHeightMm * ratio;
@@ -1057,7 +1066,6 @@ async function exportToPDF(notes, filename, sizeMode) {
   
   pdf.save(filename + '.pdf');
 }
-
 /* =====================================================================
    SHARE SYSTEM
    ===================================================================== */
