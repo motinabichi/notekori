@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notekori – Your Note Storage</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ────────────────────────────── LOGIN OVERLAY ────────────────────────────── -->
+  <div id="loginOverlay" class="overlay" aria-modal="true" role="dialog" aria-labelledby="loginTitle">
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="logo-icon">📓</span>
+        <h1 id="loginTitle">Notekori</h1>
+        <p class="login-sub">Your personal note storage</p>
+      </div>
+
+      <!-- First-run setup -->
+      <form id="setupForm" class="auth-form hidden" novalidate>
+        <h2>Create Account</h2>
+        <p class="form-note">Set up your username and password to get started.</p>
+        <div class="field">
+          <label for="setupUser">Username</label>
+          <input id="setupUser" type="text" autocomplete="username" placeholder="Choose a username" required />
+        </div>
+        <div class="field">
+          <label for="setupPass">Password</label>
+          <input id="setupPass" type="password" autocomplete="new-password" placeholder="Choose a password" required />
+        </div>
+        <div class="field">
+          <label for="setupPassConfirm">Confirm Password</label>
+          <input id="setupPassConfirm" type="password" autocomplete="new-password" placeholder="Repeat password" required />
+        </div>
+        <p id="setupError" class="form-error hidden"></p>
+        <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+      </form>
+
+      <!-- Normal login -->
+      <form id="loginForm" class="auth-form hidden" novalidate>
+        <h2>Sign In</h2>
+        <div class="field">
+          <label for="loginUser">Username</label>
+          <input id="loginUser" type="text" autocomplete="username" placeholder="Your username" required />
+        </div>
+        <div class="field">
+          <label for="loginPass">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="Your password" required />
+        </div>
+        <p id="loginError" class="form-error hidden"></p>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────── MAIN APP ────────────────────────────── -->
+  <div id="app" class="app hidden">
+
+    <!-- Top Navbar -->
+    <header class="navbar">
+      <div class="navbar-left">
+        <button id="sidebarToggle" class="icon-btn" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="navbar-brand">📓 Notekori</span>
+      </div>
+      <div class="navbar-right">
+        <span id="navUsername" class="nav-username"></span>
+        <button id="logoutBtn" class="btn btn-ghost btn-sm">Logout</button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+
+      <!-- ── Sidebar ── -->
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">Courses</span>
+          <!-- Manage toolbar (toggles) -->
+          <button id="manageToggle" class="btn btn-sm btn-outline" title="Manage courses & semesters">Manage ▾</button>
+        </div>
+
+        <!-- Manage toolbar (expanded) -->
+        <div id="manageToolbar" class="manage-toolbar hidden">
+          <button id="addSemesterBtn" class="toolbar-btn" title="Add semester">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Semester
+          </button>
+          <button id="addCourseBtn" class="toolbar-btn" title="Add course">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Course
+          </button>
+        </div>
+
+        <!-- Tree -->
+        <nav id="courseTree" class="course-tree" aria-label="Course tree"></nav>
+      </aside>
+
+      <!-- ── Note Panel ── -->
+      <main id="notePanel" class="note-panel">
+
+        <!-- Empty state -->
+        <div id="emptyState" class="empty-state">
+          <span class="empty-icon">📚</span>
+          <h2>Select a course</h2>
+          <p>Choose a course from the sidebar to view and manage its notes.</p>
+        </div>
+
+        <!-- Course view -->
+        <div id="courseView" class="course-view hidden">
+          <div class="course-header">
+            <div class="course-title-row">
+              <h2 id="courseViewTitle"></h2>
+              <div class="course-actions">
+                <label class="btn btn-primary btn-sm" for="noteUpload" title="Upload notes">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                  Upload Notes
+                </label>
+                <input id="noteUpload" type="file" accept="image/*" multiple class="hidden" aria-label="Upload note images" />
+              </div>
+            </div>
+            <p id="courseNoteCount" class="note-count"></p>
+          </div>
+
+          <!-- Note gallery -->
+          <div id="noteGallery" class="note-gallery"></div>
+
+          <!-- Gallery empty state -->
+          <div id="galleryEmpty" class="gallery-empty hidden">
+            <span>🗒️</span>
+            <p>No notes yet. Click <strong>Upload Notes</strong> to add images.</p>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────── MODALS ────────────────────────────── -->
+
+  <!-- Generic text-input modal (semester name, course name, rename) -->
+  <div id="inputModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
+    <div class="modal">
+      <h3 id="inputModalTitle"></h3>
+      <div class="field">
+        <label id="inputModalLabel" for="inputModalField"></label>
+        <input id="inputModalField" type="text" />
+      </div>
+      <div class="modal-actions">
+        <button id="inputModalCancel" class="btn btn-ghost">Cancel</button>
+        <button id="inputModalConfirm" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm / delete modal -->
+  <div id="confirmModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
+    <div class="modal">
+      <h3 id="confirmModalTitle">Are you sure?</h3>
+      <p id="confirmModalMessage"></p>
+      <div class="modal-actions">
+        <button id="confirmModalCancel" class="btn btn-ghost">Cancel</button>
+        <button id="confirmModalConfirm" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note lightbox viewer -->
+  <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Note viewer">
+    <div class="lightbox-overlay" id="lightboxOverlay"></div>
+    <div class="lightbox-content">
+      <button id="lightboxClose" class="lightbox-close" aria-label="Close">&times;</button>
+      <button id="lightboxPrev" class="lightbox-nav lightbox-prev" aria-label="Previous">&#8249;</button>
+      <img id="lightboxImg" src="" alt="Note" />
+      <button id="lightboxNext" class="lightbox-nav lightbox-next" aria-label="Next">&#8250;</button>
+      <div class="lightbox-caption">
+        <span id="lightboxIndex"></span>
+        <span id="lightboxName"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
