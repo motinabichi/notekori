@@ -413,3 +413,235 @@ ul, ol { list-style: none; }
 @media (max-width: 400px) {
   .login-card { padding: 2rem 1.25rem; }
 }
+
+/* =====================================================================
+   SHARED VIEW
+   ===================================================================== */
+.shared-view {
+  display: flex; flex-direction: column; min-height: 100vh;
+  background: var(--bg);
+}
+.shared-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: .875rem 1.25rem;
+  display: flex; align-items: center; gap: 1rem;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.shared-logo {
+  font-size: 1.1rem; font-weight: 700; color: var(--primary);
+  white-space: nowrap;
+}
+.shared-title-block {
+  flex: 1; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+}
+.shared-course-title {
+  font-size: 1.1rem; font-weight: 600;
+}
+.shared-term-badge {
+  background: var(--primary); color: #fff;
+  padding: .15rem .55rem; border-radius: 99px; font-size: .78rem; font-weight: 500;
+}
+.shared-by {
+  font-size: .83rem; color: var(--text-2);
+}
+.shared-header-actions { display: flex; gap: .5rem; flex-shrink: 0; }
+.shared-content {
+  flex: 1; padding: 1.5rem;
+}
+.shared-footer {
+  text-align: center; padding: 1rem;
+  font-size: .83rem; color: var(--text-2);
+  border-top: 1px solid var(--border);
+}
+
+/* =====================================================================
+   AUTH LINKS & LINK BUTTON
+   ===================================================================== */
+.auth-links {
+  display: flex; flex-direction: column; align-items: center;
+  gap: .4rem; margin-top: 1rem;
+}
+.link-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--primary); font-size: .83rem; text-decoration: underline;
+  padding: .1rem 0; font: inherit;
+}
+.link-btn:hover { color: var(--primary-h); }
+
+/* =====================================================================
+   FORM MESSAGES
+   ===================================================================== */
+.form-success {
+  font-size: .83rem; color: #16a34a;
+  margin-bottom: .75rem;
+}
+.form-msg {
+  font-size: .83rem;
+  margin-bottom: .75rem; margin-top: .35rem;
+}
+.form-msg.form-error   { color: var(--danger); }
+.form-msg.form-success { color: #16a34a; }
+
+/* =====================================================================
+   SETTINGS MODAL
+   ===================================================================== */
+.modal-wide { max-width: 480px; }
+.settings-section {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem; margin-top: 1rem;
+}
+.settings-section:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+.settings-section h4 {
+  font-size: .9rem; font-weight: 600; margin-bottom: .75rem; color: var(--text-2);
+}
+.readonly-input {
+  background: var(--surface-2); cursor: default;
+  color: var(--text-2);
+}
+.readonly-input:focus { border-color: var(--border); }
+
+/* =====================================================================
+   LOADING STATE & SPINNER
+   ===================================================================== */
+.loading-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; gap: 1rem; color: var(--text-2); font-size: .95rem;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* =====================================================================
+   PDF EXPORT
+   ===================================================================== */
+.pdf-options {
+  display: flex; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1rem;
+}
+.radio-option {
+  display: flex; align-items: center; gap: .45rem;
+  font-size: .9rem; cursor: pointer; user-select: none;
+}
+.radio-option input { cursor: pointer; accent-color: var(--primary); }
+.pdf-picker-hint {
+  font-size: .83rem; color: var(--text-2); margin-bottom: .75rem;
+}
+.pdf-page-picker { margin-top: .5rem; }
+.pdf-page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: .65rem;
+  max-height: 280px; overflow-y: auto;
+  padding-right: .25rem;
+}
+.pdf-page-thumb {
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  opacity: .45;
+  transition: opacity var(--transition), border-color var(--transition);
+  display: flex; flex-direction: column;
+}
+.pdf-page-thumb.selected {
+  opacity: 1;
+  border-color: var(--primary);
+}
+.pdf-page-thumb img {
+  width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block;
+}
+.pdf-page-thumb span {
+  font-size: .7rem; text-align: center; padding: .2rem .3rem;
+  background: var(--surface-2); color: var(--text-2);
+}
+
+/* =====================================================================
+   SHARE MODAL
+   ===================================================================== */
+.share-link-row {
+  display: flex; gap: .5rem; align-items: center; margin-top: .5rem;
+}
+.share-link-text {
+  flex: 1;
+  font-size: .8rem;
+  padding: .45rem .65rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  cursor: text;
+  font: inherit;
+}
+
+/* =====================================================================
+   LIGHTBOX ACTIONS
+   ===================================================================== */
+.lightbox-actions {
+  margin-top: .65rem; display: flex; justify-content: center;
+}
+.lightbox-replace-label {
+  cursor: pointer;
+  color: rgba(255,255,255,.8);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: var(--radius-sm);
+  padding: .35rem .75rem;
+  font-size: .8rem;
+  display: inline-flex; align-items: center; gap: .35rem;
+  transition: background var(--transition), color var(--transition);
+}
+.lightbox-replace-label:hover {
+  background: rgba(255,255,255,.12);
+  color: #fff;
+}
+
+/* =====================================================================
+   SIDEBAR TERMS (Midterm / Final)
+   ===================================================================== */
+.course-wrapper {}
+.term-list {
+  display: none;
+  padding-left: 1.4rem;
+  padding-bottom: .15rem;
+}
+.course-wrapper.course-open .term-list { display: block; }
+.term-row {
+  display: flex; align-items: center; gap: .3rem;
+  padding: .35rem .75rem .35rem .5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin: 1px .25rem;
+  transition: background var(--transition);
+}
+.term-row:hover  { background: var(--surface-2); }
+.term-row.active {
+  background: #eef1fe; color: var(--primary);
+}
+.term-row.active .term-name { color: var(--primary); font-weight: 600; }
+.term-icon { font-size: .8rem; flex-shrink: 0; }
+.term-name { font-size: .84rem; }
+
+/* Loose courses separator */
+.loose-sep {
+  font-size: .75rem; font-weight: 600; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: .05em;
+  padding: .65rem .75rem .3rem;
+}
+
+/* Course row active state now from course-wrapper (no direct active class needed) */
+.course-row { position: relative; }
+
+/* =====================================================================
+   RESPONSIVE ADDITIONS
+   ===================================================================== */
+@media (max-width: 640px) {
+  .shared-header { padding: .65rem .875rem; }
+  .pdf-page-grid  { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  .modal-wide { max-width: 100%; }
+}
