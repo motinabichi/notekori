@@ -291,10 +291,12 @@
     </div>
   </div>
 
-  <!-- PDF Export -->
+ <!-- PDF Export -->
   <div id="pdfModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
     <div class="modal modal-wide">
       <h3>Export PDF</h3>
+      
+      <h4>Pages to Export:</h4>
       <div class="pdf-options">
         <label class="radio-option">
           <input type="radio" name="pdfMode" value="all" checked /> All Pages
@@ -303,6 +305,22 @@
           <input type="radio" name="pdfMode" value="selected" /> Selected Pages Only
         </label>
       </div>
+
+      <!-- NEW SIZING OPTIONS -->
+      <h4 style="margin-top: 1rem;">Page Size:</h4>
+      <div class="pdf-options" style="margin-bottom: 1.5rem;">
+        <label class="radio-option">
+          <input type="radio" name="pdfSize" value="original" checked /> Original Image Size
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="pdfSize" value="a4" /> A4 Size
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="pdfSize" value="letter" /> US Letter
+        </label>
+      </div>
+      <!-- END NEW SIZING OPTIONS -->
+
       <div id="pdfPagePicker" class="pdf-page-picker hidden">
         <p class="pdf-picker-hint">Click to toggle page selection:</p>
         <div id="pdfPageGrid" class="pdf-page-grid"></div>
