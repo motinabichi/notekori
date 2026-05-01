@@ -1024,37 +1024,33 @@ async function exportToPDF(notes, filename, sizeMode) {
     const imgHeightMm = img.height * pxToMm;
 
     let format;
-    
-    // 🚀 NEW: Detect if the image is wider than it is tall (Landscape 'l' vs Portrait 'p')
-    const imageOrientation = imgWidthMm > imgHeightMm ? 'l' : 'p';
+    let orientation;
 
-    if (sizeMode === 'a4') {
-      format = 'a4';
-    } else if (sizeMode === 'letter') {
-      format = 'letter';
-    } else {
+    if (sizeMode === 'original') {
+      // Provide exact absolute dimensions. 
+      // We MUST use 'p' here so jsPDF doesn't accidentally flip our custom dimensions.
       format = [imgWidthMm, imgHeightMm];
+      orientation = 'p'; 
+    } else {
+      // For A4 and Letter, check if image is wide or tall to rotate the paper nicely
+      format = sizeMode === 'a4' ? 'a4' : 'letter';
+      orientation = imgWidthMm > imgHeightMm ? 'l' : 'p';
     }
 
-    // 🚀 NEW: If "original" is selected, use the image's true orientation. Otherwise, use Portrait.
-    const pageOrientation = sizeMode === 'original' ? imageOrientation : 'p';
-
     if (i === 0) {
-      // First page creation
-      pdf = new jsPDF(pageOrientation, 'mm', format);
+      pdf = new jsPDF(orientation, 'mm', format);
     } else {
-      // Adding subsequent pages
-      pdf.addPage(format, pageOrientation);
+      pdf.addPage(format, orientation);
     }
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
     if (sizeMode === 'original') {
-      // Exactly fit the image to the page dimensions with ZERO margins
+      // Draw edge-to-edge
       pdf.addImage(notes[i].dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight);
     } else {
-      // For A4/Letter, center the image to avoid stretching
+      // Center on A4/Letter
       const ratio = Math.min(pageWidth / imgWidthMm, pageHeight / imgHeightMm);
       const w = imgWidthMm * ratio;
       const h = imgHeightMm * ratio;
